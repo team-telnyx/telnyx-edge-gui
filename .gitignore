@@ -1,0 +1,7 @@
+node_modules/
+data/
+.DS_Store
+dist/
+windows/bin/
+windows/obj/
+windows/out/

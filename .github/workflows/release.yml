@@ -1,0 +1,125 @@
+name: Build and release
+
+# Pull requests and pushes to main: tests on macOS and Windows, and all app
+# builds (downloadable from the run's artifacts). A tag like v1.0.0 also publishes a
+# GitHub release with the Mac .dmg, the Windows installers and zips, and SHA256SUMS.txt.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm test
+
+  mac:
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag matches package.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          v=$(node -p "require('./package.json').version")
+          [ "v$v" = "$GITHUB_REF_NAME" ] || { echo "Tag $GITHUB_REF_NAME does not match package.json version $v"; exit 1; }
+      - name: Build universal app and disk image
+        run: macos/build.sh
+      - name: Check the app
+        run: |
+          app="dist/Telnyx Edge.app"
+          lipo -archs "$app/Contents/MacOS/TelnyxEdge" | grep -q "x86_64 arm64"
+          lipo -archs "$app/Contents/Resources/node/bin/node" | grep -q "x86_64 arm64"
+          codesign --verify --strict "$app"
+          "$app/Contents/Resources/node/bin/node" --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          path: dist/TelnyxEdge-*.dmg
+          if-no-files-found: error
+
+  windows:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Install Inno Setup
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup --no-progress -y }
+      - name: Build
+        # The runner is x64, so only the x64 build can be started here.
+        run: windows/build.ps1 -Arch ${{ matrix.arch }} ${{ matrix.arch == 'x64' && '-SmokeTest' || '' }}
+      - name: Check the app
+        run: |
+          $machine = @{ x64 = 0x8664; arm64 = 0xAA64 }['${{ matrix.arch }}']
+          foreach ($exe in 'dist\.build-win-${{ matrix.arch }}\Telnyx Edge\TelnyxEdge.exe', 'dist\.build-win-${{ matrix.arch }}\Telnyx Edge\node\node.exe') {
+            $bytes = [IO.File]::ReadAllBytes((Resolve-Path $exe))
+            $pe = [BitConverter]::ToInt32($bytes, 0x3C)
+            $m = [BitConverter]::ToUInt16($bytes, $pe + 4)
+            if ($m -ne $machine) { throw "$exe is built for machine 0x$($m.ToString('X')), expected ${{ matrix.arch }}" }
+            Write-Host "$exe OK (${{ matrix.arch }})"
+          }
+          if (-not (Test-Path dist\TelnyxEdge-*-win-${{ matrix.arch }}-Setup.exe)) { throw 'Installer missing' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-${{ matrix.arch }}
+          path: |
+            dist/TelnyxEdge-*-Setup.exe
+            dist/TelnyxEdge-*.zip
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [mac, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: files
+          merge-multiple: true
+      - name: Checksums
+        run: cd files && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          cat > notes.md <<EOF
+          ## Download
+
+          | Computer | File |
+          |---|---|
+          | **Mac** (macOS 13 or later, Apple silicon or Intel) | \`TelnyxEdge-$v.dmg\` |
+          | **Windows 11**, most PCs (Intel/AMD) | \`TelnyxEdge-$v-win-x64-Setup.exe\` |
+          | **Windows 11 on ARM** (e.g. Snapdragon) | \`TelnyxEdge-$v-win-arm64-Setup.exe\` |
+
+          The \`.zip\` files are portable Windows versions that need no installation.
+
+          The app isn't signed with an Apple or Microsoft certificate, so your computer asks you to approve it the first time. See [how to open it](https://github.com/${GITHUB_REPOSITORY}/blob/main/docs/APPROVING-UNSIGNED-APPS.md). To check a download, compare it with \`SHA256SUMS.txt\`.
+
+          EOF
+          gh release create "$GITHUB_REF_NAME" files/* --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" --notes-file notes.md --generate-notes
