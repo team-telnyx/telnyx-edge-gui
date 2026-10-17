@@ -444,8 +444,24 @@ function helpTip(topic) {
   return `<span class="qhelp" tabindex="0" aria-label="About this page">?<span class="tip" role="tooltip"><span>${esc(t.scope)}${t.doc ? `<a href="${esc(t.doc[1])}" target="_blank" rel="noopener">${esc(t.doc[0])} ${icon('ext')}</a>` : ''}</span></span></span>`;
 }
 
-/** Help text is plain text with `code` and **bold** markers. It is escaped first, so it can never inject HTML. */
-const helpText = (s) => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+/** A new element whose content is set as text or child nodes, never parsed as HTML. */
+function node(tag, cls = '', content = '') {
+  const el = document.createElement(tag);
+  if (cls) el.className = cls;
+  el.append(content);
+  return el;
+}
+
+/** Help text is plain text with `code` and **bold** markers, built as text nodes so it never becomes HTML. */
+function helpText(s) {
+  const frag = document.createDocumentFragment();
+  for (const part of s.split(/(`[^`]+`|\*\*[^*]+\*\*)/)) {
+    if (/^`.+`$/.test(part)) frag.append(node('code', '', part.slice(1, -1)));
+    else if (/^\*\*.+\*\*$/.test(part)) frag.append(node('b', '', part.slice(2, -2)));
+    else if (part) frag.append(part);
+  }
+  return frag;
+}
 
 const PAGE_TITLES = { overview: 'Overview', explorer: 'API explorer', jobs: 'Jobs', profiles: 'Profiles' };
 
@@ -464,20 +480,34 @@ const helpOpen = () => {
   return window.innerWidth >= 1100;
 };
 
+const HELP_SHOW = `<button class="iconbtn" data-act="helptoggle" title="Show help" aria-expanded="false">${icon('help')}</button>`;
+const HELP_HEAD = `<b>${icon('help')} Help</b><button class="iconbtn" data-act="helptoggle" title="Hide help" aria-expanded="true">${icon('panel')}</button>`;
+
 function renderHelp(key) {
   const el = $('#help');
   if (!el) return;
   const open = helpOpen();
   el.classList.toggle('collapsed', !open);
-  if (!open) { el.innerHTML = `<button class="iconbtn" data-act="helptoggle" title="Show help" aria-expanded="false">${icon('help')}</button>`; return; }
+  if (!open) { el.innerHTML = HELP_SHOW; return; }
   const [topic, detail, tab] = key.split('/');
   const t = TOPICS[topic];
-  const h = HELP[key];
-  const title = `${KIND[topic]?.title || PAGE_TITLES[topic] || topic}${detail ? ` · ${tab === 'table' ? 'table' : tab || 'details'}` : ''}`;
-  el.innerHTML = `<div class="helphd"><b>${icon('help')} Help</b><button class="iconbtn" data-act="helptoggle" title="Hide help" aria-expanded="true">${icon('panel')}</button></div>
-    <div class="helpbd"><h4>${esc(title)}</h4>${t ? `<p class="muted">${esc(t.scope)}</p>` : ''}
-      ${(h?.sections || []).map(([head, items]) => `<h5>${esc(head)}</h5><dl>${items.map(([term, text]) => `<dt>${esc(term)}</dt><dd>${helpText(text)}</dd>`).join('')}</dl>`).join('')}
-      ${t?.doc ? `<a class="btn sm" href="${esc(t.doc[1])}" target="_blank" rel="noopener">${icon('ext')} ${esc(t.doc[0])}</a>` : ''}</div>`;
+  const head = node('div', 'helphd');
+  head.innerHTML = HELP_HEAD;
+  const body = node('div', 'helpbd', node('h4', '', `${KIND[topic]?.title || PAGE_TITLES[topic] || topic}${detail ? ` · ${tab === 'table' ? 'table' : tab || 'details'}` : ''}`));
+  if (t) body.append(node('p', 'muted', t.scope));
+  for (const [heading, items] of HELP[key]?.sections || []) {
+    const dl = node('dl');
+    for (const [term, text] of items) dl.append(node('dt', '', term), node('dd', '', helpText(text)));
+    body.append(node('h5', '', heading), dl);
+  }
+  // Only links to the Telnyx docs, which open in the browser.
+  if (t?.doc && t.doc[1].startsWith('https://developers.telnyx.com/')) {
+    const a = node('a', 'btn sm', ` ${t.doc[0]}`);
+    Object.assign(a, { href: t.doc[1], target: '_blank', rel: 'noopener' });
+    a.insertAdjacentHTML('afterbegin', icon('ext'));
+    body.append(a);
+  }
+  el.replaceChildren(head, body);
 }
 
 function renderProfileSwitch() {
