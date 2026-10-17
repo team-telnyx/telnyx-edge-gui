@@ -79,6 +79,7 @@ From then on, the app opens straight into the account you used last.
   - **function metrics, logs and revisions**, with rollback;
   - the **region** each function is running in (see [Regions](#regions));
   - an **API explorer** for any `/v2/compute` or `/v2/storage` request.
+- **Help on every page.** Hover the **?** next to a page title for what the page is for and a link to the Telnyx docs. The **Help** column on the right explains everything on the current page and tab; collapse it with the button at its top.
 - **Links and downloads.** Links to other sites open in your browser. SQL exports ask where to save the file.
 
 ### App menu
@@ -114,7 +115,7 @@ Download the newer version from [Releases](https://github.com/team-telnyx/telnyx
 - **Mac:** drag the app to Applications again and choose **Replace**.
 - **Windows:** run the new `Setup.exe`. It closes the running app and updates it in place.
 
-Approve the new version once, as in [The first time you open it](#the-first-time-you-open-it). Your profiles and saved sign-ins are kept. On a Mac, click **Always Allow** if the Keychain asks again.
+Approve the new version once, as in [The first time you open it](#the-first-time-you-open-it). Your profiles and saved sign-ins are kept. What changed in each version is in [CHANGELOG.md](CHANGELOG.md). On a Mac, click **Always Allow** if the Keychain asks again.
 
 ## Uninstalling
 

@@ -1,5 +1,7 @@
 // Telnyx Edge Control Panel — single-page UI, no build step.
 
+import { HELP, TOPICS } from './help.js';
+
 const root = document.getElementById('root');
 
 // In the desktop apps, sign-in keys are kept by the OS (macOS Keychain, Windows
@@ -64,6 +66,8 @@ const ICONS = {
   download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
   chevron: '<path d="m6 9 6 6 6-6"/>',
   shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/>',
+  panel: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/>',
 };
 const icon = (n) => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ''}</svg>`;
 
@@ -397,6 +401,7 @@ function renderShell() {
       <div class="brand"><img class="logo" src="telnyx-logo.svg" alt="Telnyx"><small><b>Edge</b> Control Panel</small></div>
       <div class="profile-switch" id="pswitch"></div>
       <nav id="navitems"></nav>
+      <div class="clock" id="clock" aria-label="Date and time"></div>
       <div class="navfoot">
         <span class="ellipsis" title="${esc(S.me.apiBase)}">API ${esc(S.me.apiBase.replace(/^https?:\/\//, ''))}</span>
         <button class="btn sm" data-act="logout">${icon('logout')} Sign out</button>
@@ -409,12 +414,67 @@ function renderShell() {
         <input type="search" class="search" id="filter" placeholder="Filter this page…  ( / )" autocomplete="off">
         <button class="btn" data-act="refresh" title="Reload from Telnyx">${icon('refresh')} Refresh</button>
       </header>
-      <main class="content" id="content"></main>
+      <div class="body">
+        <main class="content" id="content"></main>
+        <aside class="help" id="help" aria-label="Help"></aside>
+      </div>
     </div>
   </div>`;
   $('#filter').addEventListener('input', (e) => { S.filter = e.target.value.toLowerCase(); applyFilter(); });
   renderProfileSwitch();
   renderNav();
+  tickClock();
+}
+
+// Sidebar clock: date on one line, time on the next.
+function tickClock() {
+  const el = $('#clock');
+  if (!el) return;
+  const now = new Date();
+  el.innerHTML = `<span>${esc(now.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }))}</span><span>${esc(now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' }))}</span>`;
+}
+setInterval(tickClock, 1000);
+
+// ---------- page help ----------
+
+/** The "?" next to a page title: hover or focus shows the page's scope and its Telnyx docs page. */
+function helpTip(topic) {
+  const t = TOPICS[topic];
+  if (!t) return '';
+  return `<span class="qhelp" tabindex="0" aria-label="About this page">?<span class="tip" role="tooltip"><span>${esc(t.scope)}${t.doc ? `<a href="${esc(t.doc[1])}" target="_blank" rel="noopener">${esc(t.doc[0])} ${icon('ext')}</a>` : ''}</span></span></span>`;
+}
+
+const PAGE_TITLES = { overview: 'Overview', explorer: 'API explorer', jobs: 'Jobs', profiles: 'Profiles' };
+
+/** Which HELP entry describes the page at `parts`: a list, a detail page, or one of its tabs. */
+function helpKey(parts) {
+  const [first = '', id, sub, extra] = parts;
+  if (!first) return 'overview';
+  if (!KIND[first] || !id) return first;
+  const tab = first === 'sqldbs' && sub === 'tables' ? (extra ? 'table' : '') : sub;
+  const key = `${first}/detail${tab ? `/${tab}` : ''}`;
+  return HELP[key] ? key : `${first}/detail`;
+}
+
+const helpOpen = () => {
+  try { const v = localStorage.getItem('help'); if (v) return v === '1'; } catch { /* storage blocked */ }
+  return window.innerWidth >= 1100;
+};
+
+function renderHelp(key) {
+  const el = $('#help');
+  if (!el) return;
+  const open = helpOpen();
+  el.classList.toggle('collapsed', !open);
+  if (!open) { el.innerHTML = `<button class="iconbtn" data-act="helptoggle" title="Show help" aria-expanded="false">${icon('help')}</button>`; return; }
+  const [topic, detail, tab] = key.split('/');
+  const t = TOPICS[topic];
+  const h = HELP[key];
+  const title = `${KIND[topic]?.title || PAGE_TITLES[topic] || topic}${detail ? ` · ${tab === 'table' ? 'table' : tab || 'details'}` : ''}`;
+  el.innerHTML = `<div class="helphd"><b>${icon('help')} Help</b><button class="iconbtn" data-act="helptoggle" title="Hide help" aria-expanded="true">${icon('panel')}</button></div>
+    <div class="helpbd"><h4>${esc(title)}</h4>${t ? `<p class="muted">${esc(t.scope)}</p>` : ''}
+      ${(h?.sections || []).map(([head, items]) => `<h5>${esc(head)}</h5><dl>${items.map(([term, text]) => `<dt>${esc(term)}</dt><dd>${text}</dd>`).join('')}</dl>`).join('')}
+      ${t?.doc ? `<a class="btn sm" href="${esc(t.doc[1])}" target="_blank" rel="noopener">${icon('ext')} ${esc(t.doc[0])}</a>` : ''}</div>`;
 }
 
 function renderProfileSwitch() {
@@ -461,6 +521,7 @@ acts({
   logout: async () => { await api('POST', '/auth/logout').catch(() => {}); S.me = null; S.overview = null; renderLogin(); },
   refresh: async () => { await refreshCounts(true); route(true); },
   navtoggle: () => $('#app').classList.toggle('navopen'),
+  helptoggle: () => { try { localStorage.setItem('help', helpOpen() ? '0' : '1'); } catch { /* storage blocked */ } renderHelp(helpKey(parseHash())); },
   pmenu: (el) => {
     if (S.menuOpen) { S.menuOpen = false; $('.menu')?.remove(); return; }
     S.menuOpen = true;
@@ -526,6 +587,7 @@ async function route(force = false) {
   S.acts = Object.fromEntries(Object.entries(S.acts).filter(([k]) => GLOBAL_ACTS.has(k)));
   $('#app')?.classList.remove('navopen');
   renderNav();
+  renderHelp(helpKey(parts));
   const content = $('#content');
   content.innerHTML = '<div class="loading"><span class="spinner"></span></div>';
   const first = parts[0] || '';
@@ -561,7 +623,7 @@ PAGES.overview = async ({ content, force, alive }) => {
       <span class="small muted">${o.errors[k] ? `<span class="lvl-error">${esc(o.errors[k])}</span>` : st.map(([s, c]) => `${c} ${esc(s)}`).join(' · ') || '&nbsp;'}</span></a>`;
   };
   content.innerHTML = `
-    <div class="pagehead"><div><h1>Overview</h1><p>Everything on Telnyx Edge for <b>${esc(p?.name)}</b> (key ${esc(p?.keyHint)}). Updated ${esc(ago(o.fetchedAt))}.</p></div></div>
+    <div class="pagehead"><div><h1>Overview ${helpTip('overview')}</h1><p>Everything on Telnyx Edge for <b>${esc(p?.name)}</b> (key ${esc(p?.keyHint)}). Updated ${esc(ago(o.fetchedAt))}.</p></div></div>
     <div class="grid kpis">${Object.keys(KIND).map(kpi).join('')}</div>
     <div class="grid two" style="margin-top:14px">
       <div class="card"><div class="hd"><h3>Needs attention</h3><span class="chip ${o.attention.length ? 'bad' : 'ok'}">${o.attention.length}</span></div>
@@ -612,7 +674,7 @@ PAGES.list = async ({ kind, content, force, alive }) => {
   const statuses = {};
   items.forEach((x) => { if (x.status) statuses[x.status] = (statuses[x.status] || 0) + 1; });
   content.innerHTML = `
-    <div class="pagehead"><div><h1>${icon(k.icon)} ${k.title} <span class="chip plain">${items.length}</span></h1><p>${k.desc}</p></div>
+    <div class="pagehead"><div><h1>${icon(k.icon)} ${k.title} ${helpTip(kind)} <span class="chip plain">${items.length}</span></h1><p>${k.desc}</p></div>
       <div class="actions">${CAN.create.has(kind) ? `<button class="btn primary" data-act="create">${icon('plus')} New ${k.one}</button>` : ''}</div></div>
     ${Object.keys(statuses).length > 1 ? `<div class="row" style="margin-bottom:12px">${Object.entries(statuses).map(([s, n]) => `<button class="btn sm" data-act="statusfilter" data-s="${esc(s)}">${chip(s)} ${n}</button>`).join('')}</div>` : ''}
     <div class="card"><div class="bd flush tablewrap">${items.length ? `<table class="t"><thead><tr>${cols.map((c) => `<th>${c[0]}</th>`).join('')}<th></th></tr></thead><tbody>
@@ -661,7 +723,7 @@ function fieldsTable(item, skip = []) {
 
 function detailHead(kind, item, extraButtons = '') {
   const k = KIND[kind];
-  return `<div class="pagehead"><div><h1>${icon(k.icon)} ${esc(item._name)} ${item.status ? chip(item.status) : ''}</h1>
+  return `<div class="pagehead"><div><h1>${icon(k.icon)} ${esc(item._name)} ${helpTip(kind)} ${item.status ? chip(item.status) : ''}</h1>
     <p>${k.one[0].toUpperCase() + k.one.slice(1)} · ${code(item._id)}${item.message ? ` · ${esc(item.message)}` : ''}</p></div>
     <div class="actions">${extraButtons}
       ${CAN.edit.has(kind) ? `<button class="btn" data-act="dedit">${icon('edit')} Edit</button>` : ''}
@@ -1044,7 +1106,7 @@ const ENDPOINTS = [
 PAGES.explorer = async ({ content }) => {
   setCrumbs([['API explorer']]);
   const last = JSON.parse(sessionStorage.getItem('explorer') || 'null') || { method: 'GET', path: '/v2/compute/funcs?page[size]=20', body: '' };
-  content.innerHTML = `<div class="pagehead"><div><h1>${icon('terminal')} API explorer</h1><p>Send any request to the Edge endpoints (<code>/v2/compute/…</code>, <code>/v2/storage/…</code>) with the active profile's key.</p></div></div>
+  content.innerHTML = `<div class="pagehead"><div><h1>${icon('terminal')} API explorer ${helpTip('explorer')}</h1><p>Send any request to the Edge endpoints (<code>/v2/compute/…</code>, <code>/v2/storage/…</code>) with the active profile's key.</p></div></div>
     <div class="stack">${card('Request', `<form id="xform" class="stack">
       <div class="row"><select name="method">${['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((m) => `<option${m === last.method ? ' selected' : ''}>${m}</option>`).join('')}</select>
         <input name="path" class="mono grow" value="${esc(last.path)}" list="eplist" spellcheck="false"><button class="btn primary">${icon('play')} Send</button></div>
@@ -1077,7 +1139,7 @@ PAGES.jobs = async ({ content, alive }) => {
   setCrumbs([['Jobs']]);
   const { jobs } = await api('GET', '/api/jobs');
   if (!alive()) return;
-  content.innerHTML = `<div class="pagehead"><div><h1>${icon('jobs')} Jobs</h1><p>Background work from this session, such as duplicating a database.</p></div></div>
+  content.innerHTML = `<div class="pagehead"><div><h1>${icon('jobs')} Jobs ${helpTip('jobs')}</h1><p>Background work from this session, such as duplicating a database.</p></div></div>
     <div class="card"><div class="bd flush">${jobs.length ? `<table class="t"><thead><tr><th>Job</th><th>Status</th><th>Started</th><th>Last step</th></tr></thead><tbody>${jobs.map((j) => `<tr class="link" data-act="job" data-id="${j.id}" data-text="${esc(j.title.toLowerCase())}">
       <td>${esc(j.title)}</td><td>${chip(j.status === 'done' ? 'done_ok' : j.status)}</td><td class="nowrap">${esc(ago(j.startedAt))}</td><td class="small muted">${esc(j.error || j.log.at(-1)?.msg || '')}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No jobs yet.</div>'}</div></div>`;
   acts({ job: (el) => jobDialog(el.dataset.id).then(() => route()) });
@@ -1089,7 +1151,7 @@ PAGES.jobs = async ({ content, alive }) => {
 PAGES.profiles = async ({ content }) => {
   setCrumbs([['Profiles']]);
   const me = S.me;
-  content.innerHTML = `<div class="pagehead"><div><h1>${icon('users')} Profiles</h1><p>Each profile is a Telnyx API key, stored encrypted in the vault that your sign-in key unlocks. Switch between them from the sidebar.</p></div>
+  content.innerHTML = `<div class="pagehead"><div><h1>${icon('users')} Profiles ${helpTip('profiles')}</h1><p>Each profile is a Telnyx API key, stored encrypted in the vault that your sign-in key unlocks. Switch between them from the sidebar.</p></div>
     <div class="actions"><button class="btn primary" data-act="padd">${icon('plus')} Add profile</button></div></div>
     <div class="card"><div class="bd flush"><table class="t"><thead><tr><th>Profile</th><th>Key</th><th>Added</th><th>Last used</th><th></th></tr></thead><tbody>
     ${me.profiles.map((p) => `<tr data-id="${p.id}" data-text="${esc(p.name.toLowerCase())}">
