@@ -104,8 +104,8 @@ data/              vaults + server.key (git-ignored)
 
 ## Releasing
 
-1. Bump `version` in `package.json` on a branch. It is the version of both apps.
-2. Merge it into `main` through a pull request (`main` is protected), then tag the merge and push the tag: `git tag v1.0.0 && git push origin v1.0.0`.
+1. Bump `version` in `package.json` on a branch. It is the version of both apps; the Windows build passes it to `dotnet publish`. Keep the fallback `<Version>` in `windows/TelnyxEdge.csproj` and the `assemblyIdentity` version in `windows/app.manifest` in step, and add an entry to [CHANGELOG.md](../CHANGELOG.md).
+2. Merge it into `main` through a pull request (`main` is protected), then tag the merge and push the tag: `git tag v1.0.1 && git push origin v1.0.1`.
 3. The **Build and release** GitHub Action publishes a GitHub release with the Mac `.dmg`, the Windows installers and zips (x64 and arm64), and `SHA256SUMS.txt`. The tag must match `package.json`.
 
 On every pull request and push to `main`, the action runs the tests on macOS and Windows and builds all the apps. It checks their architectures and runs the x64 Windows smoke test. The builds are attached to the run as artifacts, so you can try a pull request's build before merging and tagging it.
