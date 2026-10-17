@@ -444,6 +444,9 @@ function helpTip(topic) {
   return `<span class="qhelp" tabindex="0" aria-label="About this page">?<span class="tip" role="tooltip"><span>${esc(t.scope)}${t.doc ? `<a href="${esc(t.doc[1])}" target="_blank" rel="noopener">${esc(t.doc[0])} ${icon('ext')}</a>` : ''}</span></span></span>`;
 }
 
+/** Help text is plain text with `code` and **bold** markers. It is escaped first, so it can never inject HTML. */
+const helpText = (s) => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+
 const PAGE_TITLES = { overview: 'Overview', explorer: 'API explorer', jobs: 'Jobs', profiles: 'Profiles' };
 
 /** Which HELP entry describes the page at `parts`: a list, a detail page, or one of its tabs. */
@@ -473,7 +476,7 @@ function renderHelp(key) {
   const title = `${KIND[topic]?.title || PAGE_TITLES[topic] || topic}${detail ? ` · ${tab === 'table' ? 'table' : tab || 'details'}` : ''}`;
   el.innerHTML = `<div class="helphd"><b>${icon('help')} Help</b><button class="iconbtn" data-act="helptoggle" title="Hide help" aria-expanded="true">${icon('panel')}</button></div>
     <div class="helpbd"><h4>${esc(title)}</h4>${t ? `<p class="muted">${esc(t.scope)}</p>` : ''}
-      ${(h?.sections || []).map(([head, items]) => `<h5>${esc(head)}</h5><dl>${items.map(([term, text]) => `<dt>${esc(term)}</dt><dd>${text}</dd>`).join('')}</dl>`).join('')}
+      ${(h?.sections || []).map(([head, items]) => `<h5>${esc(head)}</h5><dl>${items.map(([term, text]) => `<dt>${esc(term)}</dt><dd>${helpText(text)}</dd>`).join('')}</dl>`).join('')}
       ${t?.doc ? `<a class="btn sm" href="${esc(t.doc[1])}" target="_blank" rel="noopener">${icon('ext')} ${esc(t.doc[0])}</a>` : ''}</div>`;
 }
 

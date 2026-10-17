@@ -100,7 +100,6 @@ svg.i { width: 15px; height: 15px; flex: none; stroke: currentColor; fill: none;
 .helpbd dt { font-weight: 600; }
 .helpbd dd { margin: 2px 0 10px; color: var(--ink-2); font-size: 12.5px; }
 .helpbd .btn { margin-top: 18px; white-space: normal; }
-kbd { font: 11px ui-monospace, "SF Mono", Menlo, monospace; padding: 0 4px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; background: var(--panel-2); }
 
 /* ---------- controls ---------- */
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); white-space: nowrap; box-shadow: var(--shadow); }
