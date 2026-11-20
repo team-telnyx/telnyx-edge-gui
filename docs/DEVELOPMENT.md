@@ -83,6 +83,8 @@ Deletes of functions, databases and namespaces require typing the name. **Jobs**
 
 Telnyx chooses where a function runs. The API has no region field on functions, SQL databases or KV namespaces, and nothing accepts one on create, so the panel has no region selector. The only place a region appears is on each request log. The Functions list and the function overview read the last 24 hours of request logs (up to 250 requests, cached for a minute) and show the regions found there, busiest first. A function with no requests in that window shows `—`.
 
+Each function is also reachable per region at `<name>.<region>.telnyxcompute.com` (the region list is `REGIONS` in `lib/edge.js`). Each region in the list has its own address and a valid certificate. `eu-central-1` (Frankfurt) is left out for now: it currently points to the same address as the main URL, so a check would not show Frankfurt. Add it back once it has its own address. `POST /api/functions/{id}/region-check` requests `/` on the main URL and on every regional URL from the panel server, and reports the status and time of each. A regional URL answers 404 where the function is not deployed, so a region is reported as not deployed only when the main URL does not answer 404 itself. The check is not covered by the tests, because it calls `telnyxcompute.com` directly.
+
 ## API coverage
 
 The read endpoints (lists, function detail, revisions, `metric_aggregates`, logs, log export, storage detail, KV keys, bindings) were checked against the live API. The write endpoints use the request shapes of the `telnyx-edge` CLI v0.5.x (for example `POST /funcs/{id}/actions/rollback`, `POST /sqldbs/{id}/actions/query`, `PUT /kvs/{id}/keys/{key}`, `POST /domains/{id}/actions/verify`), and they have been exercised only against the mock. If Telnyx answers differently, the panel shows the Telnyx error as-is, and the API explorer can send the corrected request. The endpoint paths are all in `lib/edge.js`.
@@ -105,7 +107,7 @@ data/              vaults + server.key (git-ignored)
 ## Releasing
 
 1. Bump `version` in `package.json` on a branch. It is the version of both apps; the Windows build passes it to `dotnet publish`. Keep the fallback `<Version>` in `windows/TelnyxEdge.csproj` and the `assemblyIdentity` version in `windows/app.manifest` in step, and add an entry to [CHANGELOG.md](../CHANGELOG.md).
-2. Merge it into `main` through a pull request (`main` is protected), then tag the merge and push the tag: `git tag v1.0.1 && git push origin v1.0.1`.
+2. Merge it into `main` through a pull request (`main` is protected), then tag the merge and push the tag: `git tag v1.0.2 && git push origin v1.0.2`.
 3. The **Build and release** GitHub Action publishes a GitHub release with the Mac `.dmg`, the Windows installers and zips (x64 and arm64), and `SHA256SUMS.txt`. The tag must match `package.json`.
 
 On every pull request and push to `main`, the action runs the tests on macOS and Windows and builds all the apps. It checks their architectures and runs the x64 Windows smoke test. The builds are attached to the run as artifacts, so you can try a pull request's build before merging and tagging it.

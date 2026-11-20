@@ -1,6 +1,6 @@
 {
   "name": "telnyx-edge-gui",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "description": "Multi-profile control panel for Telnyx Edge Compute",

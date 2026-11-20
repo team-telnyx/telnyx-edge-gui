@@ -814,7 +814,7 @@ function regionChips(list) {
   if (!list) return '<span class="muted" title="The request logs could not be read.">?</span>';
   if (!list.length) return `<span class="muted" title="${NO_REGION}">—</span>`;
   const total = list.reduce((n, r) => n + r.requests, 0);
-  return list.map((r) => `<span class="chip plain" title="${r.requests} of the last ${total} request(s)">${esc(r.region)}${list.length > 1 ? ` ${Math.round((r.requests / total) * 100)}%` : ''}</span>`).join(' ');
+  return list.map((r) => `<span class="chip plain" title="${r.requests} of the last ${total} request(s)">${esc(r.region)}${r.city ? ` · ${esc(r.city)}` : ''}${list.length > 1 ? ` ${Math.round((r.requests / total) * 100)}%` : ''}</span>`).join(' ');
 }
 
 PAGES.functionsDetail = async ({ id, sub, content, alive }) => {
@@ -833,12 +833,33 @@ PAGES.functionsDetail = async ({ id, sub, content, alive }) => {
     reset: () => confirmDanger({ title: 'Reset function', message: `Reset <b>${esc(f._name)}</b> back to the <i>created</i> state so it can be shipped again?`, action: 'Reset', onConfirm: () => api('POST', `/api/functions/${enc(id)}/actions/reset`) }).then((ok) => { if (ok) { toast('Reset requested'); route(true); } }),
   });
   const tab = $('#tab');
+  acts({
+    regioncheck: async (el) => {
+      el.disabled = true;
+      tab.querySelectorAll('[data-probe]').forEach((td) => { td.innerHTML = '<span class="spinner"></span>'; });
+      const r = await api('POST', `/api/functions/${enc(id)}/region-check`).catch((e) => ({ error: e.message }));
+      if (!alive()) return;
+      el.disabled = false;
+      if (r.error) toast(r.error, true);
+      const by = new Map((r.regions || []).map((x) => [x.region, x]));
+      tab.querySelectorAll('[data-probe]').forEach((td) => {
+        const x = by.get(td.dataset.probe);
+        if (!x) { td.innerHTML = '<span class="muted">—</span>'; return; }
+        const label = x.status === null ? x.error : x.deployed === false ? 'not deployed' : x.deployed ? 'responds' : `HTTP ${x.status}`;
+        td.innerHTML = `<span class="chip ${x.deployed ? 'ok' : x.status === null ? 'bad' : ''}" title="HTTP ${esc(x.status ?? '—')}">${esc(label)}</span> <span class="muted small">${x.ms} ms</span>`;
+      });
+    },
+  });
   if (!sub) {
     tab.innerHTML = `<div class="grid two">
       ${card('Details', fieldsTable(f, ['bindings']))}
       <div class="stack">
         ${card('Region', d.regionsError ? `<div class="note warn">${esc(d.regionsError)}</div>` : `${d.regions.length ? regionChips(d.regions) : `<div class="muted">${NO_REGION}</div>`}
           <div class="muted small" style="margin-top:8px">Where requests ran in the last 24 hours. Telnyx chooses the region: it cannot be set yet.</div>`)}
+        ${d.regionHosts.length ? card('Regional URLs', `<table class="t"><thead><tr><th>Region</th><th>URL</th><th>Check</th></tr></thead><tbody>${d.regionHosts.map((h) => `<tr><td class="nowrap">${esc(h.region)} <span class="muted small">${esc(h.city)}</span></td>
+          <td><a class="small" href="https://${esc(h.host)}" target="_blank" rel="noopener">${esc(h.host)}</a></td><td class="nowrap" data-probe="${esc(h.region)}"><span class="muted">—</span></td></tr>`).join('')}</tbody></table>
+          <div class="muted small" style="margin-top:8px">Each URL reaches the function in that region only, and answers 404 where the function is not deployed. <b>Check</b> sends one request for <code>/</code> to each.</div>`,
+          `<button class="btn sm" data-act="regioncheck" style="margin-left:auto">${icon('refresh')} Check</button>`) : ''}
         ${card('Bindings', f.bindings.length ? `<table class="t"><thead><tr><th>Env</th><th>Type</th><th>Target</th><th>Status</th></tr></thead><tbody>${f.bindings.map((b) => `<tr><td class="mono">${esc(b.env_name)}</td><td>${esc(b.binding_type)}</td>
           <td>${b.target_kind ? `<a href="#/${b.target_kind}/${enc(b.target_id)}">${esc(b.target_name || b.target_id)}</a>` : '—'}</td><td>${chip(b.status)}</td></tr>`).join('')}</tbody></table>` : '<div class="muted">No storage bindings. Declare them in <code>func.toml</code> and ship.</div>')}
         ${card('Last 24 hours', d.metricsError ? `<div class="note warn">${esc(d.metricsError)}</div>` : metricsHtml(d.metrics), `<a class="small" href="${base}/metrics" style="margin-left:auto">More</a>`)}

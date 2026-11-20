@@ -225,6 +225,7 @@ async function edgeRoutes(req, res, s, parts, url) {
     if (sub === 'metrics' && M === 'GET') return send(res, 200, await edge.functionMetrics(profile, id, q.range));
     if (sub === 'logs' && M === 'GET') return send(res, 200, await edge.functionLogs(profile, id, q));
     if (sub === 'revisions' && M === 'GET') return send(res, 200, { revisions: await edge.functionRevisions(profile, id) });
+    if (sub === 'region-check' && M === 'POST') return send(res, 200, await edge.functionRegionCheck(profile, id));
     if (sub === 'actions' && M === 'POST') return send(res, 200, { result: await edge.functionAction(profile, id, subId, await readBody(req)) });
   }
   if (kindName === 'sqldbs') {

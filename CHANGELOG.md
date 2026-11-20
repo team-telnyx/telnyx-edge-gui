@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.2
+
+- **Regional URLs.** A function's overview lists its address in each region (`<name>.<region>.telnyxcompute.com`), and **Check** shows which regions answer and where the function isn't deployed.
+- **City names** next to region codes, for example `us-east-2 · New York`.
+
+Upgrading from 1.0.1 keeps your profiles, vaults and saved sign-ins.
+
 ## 1.0.1
 
 - **Date and time** at the bottom of the sidebar.

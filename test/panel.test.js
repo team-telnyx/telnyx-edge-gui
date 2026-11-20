@@ -131,6 +131,9 @@ test('function detail resolves bindings, metrics, revisions, logs; rollback, res
   const logs = (await c.req('GET', `/api/functions/${fn.id}/logs?type=invocations&range=1h`)).data;
   assert.equal(logs.data[0].status_code, 200);
   assert.equal(d.regions[0].region, 'us-east-2');
+  assert.equal(d.regions[0].city, 'New York');
+  assert.equal(d.regionHosts.length, 6);
+  assert.ok(d.regionHosts.some((h) => h.region === 'eu-west-1' && h.city === 'Amsterdam' && h.host === 'hello-abc.eu-west-1.telnyxcompute.com'));
   const all = (await c.req('GET', '/api/regions')).data.regions;
   assert.deepEqual(Object.keys(all).sort(), mock.accounts['acct-a'].funcs.map((f) => f.id).sort());
   assert.deepEqual(all[fn.id].map((r) => [r.region, r.requests]), [['us-east-2', 1]]);
