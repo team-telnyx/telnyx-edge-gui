@@ -106,6 +106,7 @@ The **Functions** page has a **Region** column, and each function's overview has
 - **`—` means no recent requests.** A function that served nothing in the last 24 hours has no region to show yet. Send it a request and refresh.
 - **`?` means the request logs couldn't be read** for that function.
 - **You can't choose the region.** Telnyx decides where functions run, and it doesn't accept a region when you create a function, an SQL database or a KV namespace. That's why the app has no region selector. SQL databases and KV namespaces show no region, because Telnyx doesn't report one for them.
+- **Regional URLs.** Telnyx Edge runs in `us-east-1` (Atlanta), `us-east-2` (New York), `us-west-1` (Los Angeles), `eu-west-1` (Amsterdam), `ap-southeast-2` (Sydney) and `me-central-1` (Abu Dhabi). A function at `<name>.telnyxcompute.com` can also be reached in one region at `<name>.<region>.telnyxcompute.com`. The function's overview lists these URLs. **Check** sends one request for `/` to each and shows which regions answer. A region where the function isn't deployed answers 404 and shows *not deployed*.
 - The column is filled in a moment after the list appears, and it's refreshed at most once a minute. The filter box matches regions too.
 
 ## Updating

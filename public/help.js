@@ -66,6 +66,7 @@ export const HELP = {
       ['Overview tab', [
         DETAILS,
         ['Region', 'Regions that served the last 24 hours of requests, with each one’s share. Empty when there was no traffic.'],
+        ['Regional URLs', 'The function’s address in each region, `<name>.<region>.telnyxcompute.com`, which reaches it in that region only. **Check** requests `/` on each and shows **responds**, **not deployed** (the region answered 404) or an error, with the time taken.'],
         ['Bindings', 'Resources injected into the function’s environment. **Env** is the variable name the code reads, **Type** is what it points at (`kv`, `sqldb`, `telnyx-sdk`), **Target** links to the bound object. Declare them in `func.toml` and ship.'],
         ['Last 24 hours', 'Request count, success rate, errors, latency percentiles, CPU and memory. **More** opens the Metrics tab.'],
         ['Custom domains', 'Your own hostnames routed to this function, with their verification status.'],
