@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.3
+
+- **Version shown** at the bottom of the sidebar and on the sign-in screen. Click it to open its release notes, where you can also see whether there's a newer version.
+
+Upgrading from 1.0.2 keeps your profiles, vaults and saved sign-ins.
+
 ## 1.0.2
 
 - **Regional URLs.** A function's overview lists its address in each region (`<name>.<region>.telnyxcompute.com`), and **Check** shows which regions answer and where the function isn't deployed.

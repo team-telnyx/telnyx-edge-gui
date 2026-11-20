@@ -29,7 +29,7 @@ WIN_BRIDGE?.addEventListener('message', (e) => {
   if (p) { pendingNative.delete(m.id); m.error ? p.reject(new Error(m.error)) : p.resolve(m.value); return; }
   if (m.event) window.dispatchEvent(new CustomEvent('edge-native', { detail: m }));
 });
-const S = { me: null, overview: null, seq: 0, acts: {}, menuOpen: false, filter: '' };
+const S = { me: null, overview: null, seq: 0, acts: {}, menuOpen: false, filter: '', version: '' };
 
 // ---------- helpers ----------
 
@@ -405,6 +405,7 @@ function renderShell() {
       <div class="navfoot">
         <span class="ellipsis" title="${esc(S.me.apiBase)}">API ${esc(S.me.apiBase.replace(/^https?:\/\//, ''))}</span>
         <button class="btn sm" data-act="logout">${icon('logout')} Sign out</button>
+        ${versionLink()}
       </div>
     </aside>
     <div class="main">
@@ -424,6 +425,13 @@ function renderShell() {
   renderProfileSwitch();
   renderNav();
   tickClock();
+}
+
+const RELEASES = 'https://github.com/team-telnyx/telnyx-edge-gui/releases';
+
+/** "Version 1.0.3", linked to that version's release notes. */
+function versionLink() {
+  return S.version ? `<a class="version small" href="${RELEASES}/tag/v${enc(S.version)}" target="_blank" rel="noopener" title="What's in this version, and newer releases">Version ${esc(S.version)}</a>` : '';
 }
 
 // Sidebar clock: date on one line, time on the next.
@@ -1277,6 +1285,7 @@ function renderLogin(message = '') {
     <div class="err note bad hidden"></div>
     <button class="btn primary" type="submit">Sign in</button>
     <p class="small">Create or copy a key in the <a href="https://portal.telnyx.com/#/api-keys" target="_blank" rel="noopener">Telnyx portal</a>.</p>
+    ${versionLink()}
   </form></div>`;
   renderSaved();
   $('#login').addEventListener('submit', async (e) => {
@@ -1352,6 +1361,7 @@ function start() {
 
 (async () => {
   GLOBAL_ACTS = new Set(Object.keys(S.acts));
+  S.version = (await api('GET', '/auth/version').catch(() => null))?.version || '';
   try { S.me = await api('GET', '/auth/me'); start(); return; } catch { /* signed out */ }
   // The desktop apps sign in with the most recently used saved key when they open.
   if (NATIVE) {

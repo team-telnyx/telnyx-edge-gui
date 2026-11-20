@@ -111,6 +111,8 @@ The **Functions** page has a **Region** column, and each function's overview has
 
 ## Updating
 
+Your version is shown at the bottom of the sidebar and on the sign-in screen. Click it to see what's in it and whether there's a newer one.
+
 Download the newer version from [Releases](https://github.com/team-telnyx/telnyx-edge-gui/releases), then:
 
 - **Mac:** drag the app to Applications again and choose **Replace**.

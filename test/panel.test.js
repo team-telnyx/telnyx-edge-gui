@@ -77,6 +77,12 @@ test('sign-in sets an HttpOnly cookie and mutations need the panel + CSRF header
   assert.equal(badCsrf.status, 403);
 });
 
+test('version is public and matches package.json', async () => {
+  const r = await fetch(`${base}/auth/version`);
+  assert.equal(r.status, 200);
+  assert.equal((await r.json()).version, JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version);
+});
+
 test('vault is encrypted at rest and reopens with the same key', async () => {
   const files = fs.readdirSync(path.join(dataDir, 'vaults'));
   assert.ok(files.length >= 1);
