@@ -8,6 +8,7 @@ import {
   createSession, getSession, endSession, deleteVault, activeProfile,
 } from './lib/vault.js';
 import * as edge from './lib/edge.js';
+import { VERSION } from './lib/version.js';
 
 const PORT = +(process.env.PORT || 3007);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -106,6 +107,7 @@ async function authRoutes(req, res, parts) {
     s.activeId = login.id;
     return send(res, 200, sessionView(s), 'application/json', { 'set-cookie': setCookie(token, 24 * 3600) });
   }
+  if (req.method === 'GET' && parts[1] === 'version') return send(res, 200, { version: VERSION });
   const token = cookies(req)[COOKIE];
   if (req.method === 'POST' && parts[1] === 'logout') {
     endSession(token);
